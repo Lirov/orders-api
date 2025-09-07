@@ -10,7 +10,10 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
+import java.util.Collection;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -23,6 +26,9 @@ public class OrderController {
     @Value("${app.topics.ordersCreated}")
     private String ordersTopic;
 
+    // Simple in-memory store for demo purposes only
+    private final Map<String, OrderCreated> orderStore = new ConcurrentHashMap<>();
+
     @PostMapping
     public CreateOrderResponse create(@RequestBody CreateOrderRequest req) {
         String orderId = UUID.randomUUID().toString();
@@ -30,7 +36,20 @@ public class OrderController {
 
         kafkaTemplate.send(ordersTopic, orderId, evt);
 
+        // Store order so it can be retrieved via GET
+        orderStore.put(orderId, evt);
+
         return new CreateOrderResponse(orderId, "PUBLISHED");
+    }
+
+    @GetMapping
+    public Collection<OrderCreated> list() {
+        return orderStore.values();
+    }
+
+    @GetMapping("/{orderId}")
+    public OrderCreated getById(@PathVariable String orderId) {
+        return orderStore.get(orderId);
     }
 
     public record CreateOrderRequest(
