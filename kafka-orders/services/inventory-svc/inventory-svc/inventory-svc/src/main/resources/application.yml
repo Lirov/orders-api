@@ -5,11 +5,17 @@ spring:
       group-id: inventory-svc
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
     properties:
       spring.json.trusted.packages: "*"
+
 app:
   topics:
     ordersCreated: orders.created
+    inventoryReserved: inventory.reserved
+    inventoryRejected: inventory.rejected
 
 server:
   port: 8081
