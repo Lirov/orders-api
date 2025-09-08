@@ -1,5 +1,6 @@
 package com.example.order_api.web;
 
+import com.example.order_api.core.OrderStore;
 import com.example.order_api.events.OrderCreated;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,15 +23,16 @@ import java.util.concurrent.ConcurrentHashMap;
 public class OrderController {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final OrderStore store;
 
-    @Value("${app.topics.ordersCreated}")
+    @Value("${app.topics.ordersCreated:orders.created}")
     private String ordersTopic;
 
     // Simple in-memory store for demo purposes only
     private final Map<String, OrderCreated> orderStore = new ConcurrentHashMap<>();
 
     @PostMapping
-    public CreateOrderResponse create(@RequestBody CreateOrderRequest req) {
+    public CreateOrderResponse create(@RequestBody @jakarta.validation.Valid CreateOrderRequest req) {
         String orderId = UUID.randomUUID().toString();
         OrderCreated evt = new OrderCreated(orderId, req.sku(), req.quantity(), Instant.now());
 
@@ -52,10 +54,17 @@ public class OrderController {
         return orderStore.get(orderId);
     }
 
+    @GetMapping("/{orderId}/status")
+    public OrderStatusResponse status(@PathVariable String orderId) {
+        var s = store.get(orderId);
+        return new OrderStatusResponse(orderId, s == null ? "UNKNOWN" : s.name());
+    }
+
     public record CreateOrderRequest(
             @NotBlank String sku,
             @Min(1) int quantity
     ) {}
 
     public record CreateOrderResponse(String orderId, String status) {}
+    public record OrderStatusResponse(String orderId, String status) {}
 }
